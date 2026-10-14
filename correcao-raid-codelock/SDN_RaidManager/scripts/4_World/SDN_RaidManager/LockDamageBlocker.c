@@ -1,5 +1,5 @@
-// Fechadura numerica ORIGINAL do DayZ. A integracao do CodeLock depende
-// da classe real da acao do mod instalado (nao fornecida no ZIP original).
+// Fechadura numerica original do DayZ.
+// A integracao com o CodeLock esta em CodeLockRaidBlocker.c.
 modded class ActionDestroyCombinationLock
 {
 	override bool ActionCondition(PlayerBase player, ActionTarget target, ItemBase item)

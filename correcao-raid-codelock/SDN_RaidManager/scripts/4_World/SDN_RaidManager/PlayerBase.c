@@ -4,7 +4,7 @@ modded class PlayerBase
 	{
 		super.OnRPC(sender, rpc_type, ctx);
 
-		if (rpc_type == 1899911)
+		if (rpc_type == 1899911 && GetGame() && GetGame().IsClient() && !GetGame().IsServer())
 		{
 			bool isRaidActive = false;
 			if (ctx.Read(isRaidActive))

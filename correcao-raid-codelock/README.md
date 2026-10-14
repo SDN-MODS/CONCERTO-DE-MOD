@@ -1,40 +1,63 @@
-# Correção do controle de raid — CodeLock
+# Correção do SDN_RaidManager para CodeLock
 
-## Conteúdo salvo
+A correção foi implementada nos scripts do gerenciador de raid existente, com base nos scripts do CodeLock fornecidos pelo usuário (Workshop [1646187754](https://steamcommunity.com/sharedfiles/filedetails/?id=1646187754)). Ainda é necessário compilar/empacotar e validar no DayZ: este ambiente não tem o runtime nem as ferramentas do jogo.
 
-- `original/SDN_RaidManager.zip`: arquivo enviado, preservado sem alterações.
-- `SDN_RaidManager/`: fontes extraídas, com a preparação descrita abaixo. Os backups `.rar` continuam dentro do ZIP original.
+## O que foi corrigido
 
-## Diagnóstico
+O bloqueio original tratava `ActionDestroyCombinationLock`, a fechadura numérica padrão do DayZ. O bloco comentado mencionava `ActionDestroyCodeLock`, mas os scripts enviados usam **`ActionDestroyCodeLockOnFence`** e **`ActionDestroyCodeLockOnTent`**.
 
-O arquivo original `LockDamageBlocker.c` modifica apenas `ActionDestroyCombinationLock`, a ação da fechadura numérica padrão do DayZ. O bloco que menciona `ActionDestroyCodeLock` estava inteiramente comentado. Por isso, ele não bloqueia a ação “Destroy Codelock” da imagem.
+Essas duas ações usam `CAContinuousRepeat` e retiram HP diretamente com `AddHealth` em `OnFinishProgressServer`. Bloquear apenas o dano da construção não impede essa operação.
 
-O ZIP não inclui as fontes do CodeLock que define essa ação. Não é seguro simplesmente descomentar o bloco: o nome da classe e os métodos de aplicação do dano precisam corresponder à versão instalada. Uma classe inexistente impede o carregamento dos scripts.
+O novo `CodeLockRaidBlocker.c` modifica as duas classes corretas:
 
-## Preparação implementada
+- Raid fora do horário: `ActionCondition` retorna `false`, ocultando a ação no cliente.
+- Raid ativo: a condição original do CodeLock é executada, preservando as restrições de portão/tenda e o cálculo de HP.
+- Antes de cada ciclo de dano no servidor: o horário é consultado novamente. Fora do raid, o método original não é chamado; logo, esse ciclo não retira HP, não solta/apaga a fechadura e não desgasta a ferramenta.
+- O fim do horário bloqueia também uma ação que já estava em andamento.
 
-- Método compartilhado `CanDestroyRaidLock()` no gerenciador existente: no servidor consulta o horário/configuração; no cliente usa o estado recebido pelo RPC existente. Antes da sincronização, o cliente mantém o bloqueio.
-- A ação da fechadura numérica padrão usa essa regra para sua visibilidade.
-- A mesma ação revalida a permissão em `OnFinishProgressServer`, antes de executar o efeito, inclusive se o horário de raid terminar durante a tentativa.
-- Horários, configuração JSON, proteção de construções e notificações existentes foram preservados.
+A integração usa `#ifdef CodeLock`, macro confirmada em `scripts/Common/Common.c` do CodeLock enviado. Não modifica nem redistribui os scripts do CodeLock.
 
-## Pendente para corrigir a ação da imagem
+`CanDestroyRaidLock()` centraliza a decisão: servidor usa a configuração/horário; cliente usa o estado recebido por RPC. Sem estado válido, a ação fica bloqueada. A sincronização na entrada e na mudança de estado foi mantida; um reenvio a cada `AutoReloadSeconds` cobre clientes que ainda não estavam prontos para receber a mensagem inicial. A interface acompanha esse intervalo (padrão de 15 segundos); o servidor verifica o horário em cada ciclo de dano. Alterações do JSON dependem da recarga desse arquivo.
 
-Fornecer o link/versão do CodeLock e, se possível, os scripts que definem a ação “Destroy Codelock”, incluindo seu callback e o código que aplica dano/remove a fechadura. A integração precisa bloquear a condição exibida no cliente e o ponto real de destruição no servidor. Se o CodeLock aplica dano a cada ciclo, cada ciclo deve ser protegido.
+## Arquivos
 
-Não há integração ativa com uma classe presumida do CodeLock nesta entrega. Esta versão é uma preparação parcial, não uma correção validada da ação da imagem.
+- `SDN_RaidManager/`: fontes completas do gerenciador com a correção.
+- `original/SDN_RaidManager.zip`: upload original, preservado sem alterações.
+- `SDN_RaidManager-corrigido-fontes.zip`: pacote das fontes para baixar; **não é um PBO pronto**.
 
-## Instalação e validação após concluir a integração
+Arquivos alterados em relação ao gerenciador original:
 
-1. Empacotar `SDN_RaidManager/` com prefixo de PBO `SDN_RaidManager`, preservando os caminhos de `config.cpp`.
-2. Carregar o mod nos clientes e no servidor por `-mod`, pois ocultar a ação exige o script no cliente. Carregar apenas por `-serverMod` não atualiza a interface do jogador.
-3. Conferir a ordem/dependência de carregamento conforme o CodeLock instalado. Reiniciar clientes e servidor com o mesmo PBO atualizado.
-4. Com raid desativado, mirar na fechadura com a serra: a ação deve estar ausente e a destruição deve ser recusada no servidor.
-5. Ativar o raid e verificar que a ação aparece e funciona nas condições originalmente permitidas.
-6. Desativar o raid durante a destruição e verificar que nenhum efeito posterior ao encerramento é aplicado.
-7. Testar conexão/reconexão com raid ativo e inativo e mudanças de estado com jogadores conectados. A atualização visual depende do intervalo de recarga configurado e da entrega do RPC; a autorização no servidor deve ser reavaliada no momento do efeito.
-8. Verificar que abrir a porta e gerenciar a fechadura continuam respeitando as permissões existentes.
+1. `scripts/3_Game/SDN_RaidManager/SDN_RaidManagerManager.c`: permissão compartilhada e reenvio periódico do estado.
+2. `scripts/4_World/SDN_RaidManager/CodeLockRaidBlocker.c`: novo bloqueio para portões e tendas.
+3. `scripts/4_World/SDN_RaidManager/LockDamageBlocker.c`: mantém a proteção da fechadura padrão e revalida antes do efeito.
+4. `scripts/4_World/SDN_RaidManager/PlayerBase.c`: recebe o estado de raid somente no cliente.
 
-## Verificações neste ambiente
+## Como instalar
 
-Original preservado e comparado byte a byte com o upload; comparação das fontes limita as mudanças ao gerenciador e ao bloqueio da fechadura padrão. Não há compilador Enforce Script, DayZ Server ou CodeLock neste ambiente: compilação e comportamento no jogo não foram testados.
+1. Faça backup do PBO instalado e da configuração atual. Use a pasta `SDN_RaidManager` desta entrega como fonte para atualizar o seu mod existente. Não carregue duas cópias do gerenciador.
+2. Empacote a pasta com o Addon Builder/DayZ Tools, com prefixo **`SDN_RaidManager`**. Dentro do PBO devem estar `config.cpp` e `scripts/`, correspondendo aos caminhos já existentes em `config.cpp`.
+3. Substitua o PBO do gerenciador e assine/distribua a atualização conforme o procedimento habitual do seu servidor. O CodeLock original permanece instalado.
+4. Carregue o gerenciador **nos clientes e no servidor em `-mod`**, após o CodeLock. Exemplo de trecho da lista, mantendo as outras dependências do seu servidor: `-mod="@CodeLock;@SDN_RaidManager"`. Usar somente `-serverMod` não oculta a opção no cliente. Todos precisam receber a mesma versão atualizada.
+5. Preserve o JSON `$profile:SDN_MODS/SDN_RaidManager/SDN_RaidManagerConfig.json`. Não é necessário recriar horários. No JSON do próprio CodeLock, `CanRaidGates` precisa permitir raid (`"true"`) para a ação aparecer no horário ativo; para tendas, vale `CanRaidTents`. Essas opções são strings na versão enviada. A correção respeita as restrições do CodeLock, sem forçá-las a permitir raid.
+6. Reinicie servidor/clientes e confira os logs de compilação antes de testar.
+
+## Validação necessária no jogo
+
+| Situação | Resultado esperado |
+| --- | --- |
+| Raid desativado; serra apontada para CodeLock no portão | Ação “Destroy Codelock” ausente; HP preservado |
+| Raid ativo e `CanRaidGates` permitindo raid | Ação aparece e retira HP nos incrementos originais |
+| Raid termina durante a serragem | Nenhum novo ciclo de dano é aplicado após o fim do horário |
+| Raid ativo, mas CodeLock proíbe raid no alvo | Ação continua indisponível |
+| CodeLock em tenda | Mesmas regras, respeitando `CanRaidTents` |
+| Jogador entra durante raid ativo | Recebe o estado na entrada; reenvio periódico cobre sincronização inicial perdida |
+| Jogadores conectados durante mudança de horário | Interface atualiza com o RPC, conforme intervalo de recarga |
+| Abrir porta/gerenciar fechadura | Comportamento original preservado |
+
+## Verificações realizadas aqui
+
+Comparadas as classes, assinaturas dos métodos, macro e pontos de aplicação de dano com `scripts.zip` fornecido. Confirmado que os overrides delegam às condições e efeitos originais apenas depois da permissão de raid. O ZIP de fontes foi conferido contra a pasta da entrega, e o original do gerenciador foi preservado byte a byte.
+
+Não foram executados compilação Enforce Script, empacotamento PBO nem testes de comportamento no DayZ. A correção de código está implementada; a validação no jogo permanece pendente.
+
+SHA-256 do `scripts.zip` de referência: `8aa7c233d8de6f69f527d6c10f7240c17d981bf3179059c6b45a095ae9e13e15`.

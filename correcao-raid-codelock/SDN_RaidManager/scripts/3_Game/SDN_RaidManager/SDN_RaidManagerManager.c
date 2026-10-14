@@ -357,6 +357,8 @@ class SDN_RaidManagerManager
 	{
 		LoadConfig(true);
 		UpdateRaidStateAndNotify();
+		// Reenvio periodico cobre clientes cujo objeto ainda nao existia no RPC de entrada.
+		SyncStateToAll();
 		LogHeartbeatIfNeeded();
 	}
 
