@@ -76,3 +76,33 @@ As assinaturas e a ordem dos eventos foram conferidas nas fontes públicas do Da
 **Diagnóstico do explosivo ainda pendente:** é necessário informar o explosivo e a classe/mod da estrutura. Mods que chamam `Delete`, alteram HP diretamente ou usam construções que não derivam de `BaseBuildingBase`/`Construction` podem exigir integração específica. O bloqueio de `DestroyPartServer` não restaura HP que outro script já tenha retirado diretamente.
 
 Testar: tiros e explosões fora/dentro do raid, estrutura recém-construída, após reinício e mudança de horário; conferir HP, partes, anexos e materiais. Repetir os testes do CodeLock. Compilação e testes no jogo permanecem pendentes.
+
+## Bloqueio de colocação do BreachingCharge
+
+`BreachingChargeRaidBlocker.c` modifica a classe `HDSN_ActionDeployBreachingCharge`, confirmada no `deploybc.c` enviado, preservado em `original/deploybc.c`.
+
+- Fora do raid, a condição da ação retorna falso e a opção não é disponibilizada.
+- Uma colocação em andamento deixa de atender à condição de continuidade quando o raid termina.
+- O callback padrão `OnFinishProgressServer` também revalida a permissão antes de delegar ao mod original.
+- Durante o raid, todas as condições originais continuam valendo. Não se usa `IsDestructionUN()`: essa função pertence ao trecho enviado, e não foi definida nas fontes do gerenciador.
+
+**Dependência:** esta variante agora exige o BreachingCharge que declara essa classe. Carregue-o antes do SDN_RaidManager, nos clientes e no servidor. Exemplo, usando os nomes reais das suas pastas: `-mod="@CodeLock;@BreachingCharge;@SDN_RaidManager"`. Sem esse mod, a nova classe produz erro de compilação; não instale esta variante em servidor sem BreachingCharge. A configuração `CfgPatches` do BreachingCharge não foi fornecida, portanto não foi inventado um nome de dependência de addon.
+
+O arquivo enviado é uma adaptação da ação, não sua implementação completa. Foram conferidas as assinaturas herdadas de `ActionBase`/`ActionContinuousBase` nas fontes públicas do DayZ. Ainda é preciso testar a versão instalada para confirmar que o plantio ocorre pelo callback padrão, sem outros efeitos em callbacks não fornecidos.
+
+### Explosivos nativos e limites
+
+A proteção de `BaseBuildingBase` já recusa todo dano em `EEOnDamageCalculated` fora do raid, sem filtro por `damageType`, arma ou fonte. Isso inclui dano nativo de explosão que passa por esse callback; não se desativam explosões nem o dano a jogadores. `SetAllowDamage` e o bloqueio de `Construction.DestroyPartServer` continuam como camadas adicionais. Não foram adicionadas exceções específicas para granadas.
+
+O bloqueio de colocação não desarma cargas plantadas durante o raid. Se elas detonarem depois do encerramento, o mod de explosivo pode usar destruição direta que exige integração específica. Estruturas de mods que não usam as classes protegidas também exigem revisão própria.
+
+### Testes adicionais no servidor
+
+1. Fora do raid, tentar plantar a carga: a ação deve estar ausente e nenhuma carga deve ser posicionada/consumida.
+2. Durante o raid, concluir o plantio normalmente.
+3. Iniciar o plantio próximo do fim do raid: após encerrar o horário, não deve concluir nem consumir a carga.
+4. Testar granada e explosivo plástico nativos contra cerca/torre padrão, comparando HP e partes antes/depois, fora e dentro do raid.
+5. Repetir em estrutura recém-construída e após reinício; testar separadamente estruturas de mods.
+6. Detonar fora do raid uma carga plantada antes: registrar o resultado para identificar eventual necessidade de proteger o código de detonação do BreachingCharge.
+
+Estes testes e a compilação no DayZ ainda não foram executados neste ambiente.
