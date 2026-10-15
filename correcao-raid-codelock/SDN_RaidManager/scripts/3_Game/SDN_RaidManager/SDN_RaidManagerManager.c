@@ -17,6 +17,13 @@ class SDN_RaidManagerManager
 
 	private bool m_ClientRaidActive = false; // Cliente guarda estado aqui
 
+	private bool m_ClientBlockBreachingChargeOutsideRaid = false;
+
+	void SetClientBlockBreachingChargeOutsideRaid(bool state)
+	{
+		m_ClientBlockBreachingChargeOutsideRaid = state;
+	}
+
 	void SetClientRaidActive(bool state)
 	{
 		m_ClientRaidActive = state;
@@ -44,6 +51,28 @@ class SDN_RaidManagerManager
 		return GetClientRaidActive();
 	}
 
+	bool CanDeployBreachingCharge()
+	{
+		if (!GetGame())
+			return false;
+
+		if (GetGame().IsServer())
+		{
+			if (!m_Config)
+				return false;
+
+			if (!m_Config.BlockBreachingChargeOutsideRaid)
+				return true;
+
+			return IsSDN_RaidManager();
+		}
+
+		if (!m_ClientBlockBreachingChargeOutsideRaid)
+			return true;
+
+		return GetClientRaidActive();
+	}
+
 	void SyncStateToAll()
 	{
 		if (!GetGame() || !GetGame().IsServer())
@@ -61,6 +90,7 @@ class SDN_RaidManagerManager
 			{
 				ScriptRPC rpc = new ScriptRPC();
 				rpc.Write(raidNow);
+				rpc.Write(m_Config && m_Config.BlockBreachingChargeOutsideRaid);
 				rpc.Send(player, 1899911, true, player.GetIdentity());
 			}
 		}
@@ -78,6 +108,7 @@ class SDN_RaidManagerManager
 			bool raidNow = IsSDN_RaidManager();
 			ScriptRPC rpc = new ScriptRPC();
 			rpc.Write(raidNow);
+			rpc.Write(m_Config && m_Config.BlockBreachingChargeOutsideRaid);
 			rpc.Send(player, 1899911, true, player.GetIdentity());
 		}
 	}

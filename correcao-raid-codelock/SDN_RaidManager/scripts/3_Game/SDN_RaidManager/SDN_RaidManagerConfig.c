@@ -11,6 +11,7 @@ class SDN_RaidManagerConfig
 	ref array<ref RaidDayWindow> RaidDays = new array<ref RaidDayWindow>();
 	string DiscordWebhookUrl = "";
 	int AutoReloadSeconds = 15;
+	bool BlockBreachingChargeOutsideRaid = false;
 	bool EnableFileLog = true;
 	int StateLogIntervalSeconds = 120;
 	string DiscordStartTitle = "RAID START";

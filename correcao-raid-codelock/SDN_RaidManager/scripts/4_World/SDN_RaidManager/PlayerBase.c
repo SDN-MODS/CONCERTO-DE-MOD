@@ -7,12 +7,14 @@ modded class PlayerBase
 		if (rpc_type == 1899911 && GetGame() && GetGame().IsClient() && !GetGame().IsServer())
 		{
 			bool isRaidActive = false;
-			if (ctx.Read(isRaidActive))
+			bool blockBreachingChargeOutsideRaid = false;
+			if (ctx.Read(isRaidActive) && ctx.Read(blockBreachingChargeOutsideRaid))
 			{
 				SDN_RaidManagerManager manager = SDN_RaidManagerManager.GetInstance();
 				if (manager)
 				{
 					manager.SetClientRaidActive(isRaidActive);
+					manager.SetClientBlockBreachingChargeOutsideRaid(blockBreachingChargeOutsideRaid);
 				}
 			}
 		}
