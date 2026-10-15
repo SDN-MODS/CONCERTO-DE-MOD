@@ -1,5 +1,5 @@
 // Requer o BreachingCharge que declara HDSN_ActionDeployBreachingCharge.
-// Carregar esse mod antes do SDN_RaidManager, no cliente e no servidor.
+// Complemento opcional: carregar apos BreachingCharge e SDN_RaidManager.
 modded class HDSN_ActionDeployBreachingCharge
 {
 	override bool ActionCondition(PlayerBase player, ActionTarget target, ItemBase item)

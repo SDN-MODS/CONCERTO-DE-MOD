@@ -21,9 +21,12 @@ A integração usa `#ifdef CodeLock`, macro confirmada em `scripts/Common/Common
 
 ## Arquivos
 
-- `SDN_RaidManager/`: fontes completas do gerenciador com a correção.
+- `SDN_RaidManager/`: fontes do gerenciador principal, sem dependência do BreachingCharge.
+- `opcionais/SDN_RaidManager_BreachingCharge/`: complemento separado, apenas para servidores com BreachingCharge.
 - `original/SDN_RaidManager.zip`: upload original, preservado sem alterações.
-- `SDN_RaidManager-corrigido-fontes.zip`: pacote das fontes para baixar; **não é um PBO pronto**.
+- `SDN_RaidManager-corrigido-fontes.zip`: fontes do gerenciador principal.
+- `SDN_RaidManager-BreachingCharge-opcional-fontes.zip`: fontes do complemento opcional.
+- Os dois ZIPs são fontes; **não são PBOs prontos**.
 
 Arquivos alterados em relação ao gerenciador original:
 
@@ -79,14 +82,25 @@ Testar: tiros e explosões fora/dentro do raid, estrutura recém-construída, ap
 
 ## Bloqueio de colocação do BreachingCharge
 
-`BreachingChargeRaidBlocker.c` modifica a classe `HDSN_ActionDeployBreachingCharge`, confirmada no `deploybc.c` enviado, preservado em `original/deploybc.c`.
+O complemento em `opcionais/SDN_RaidManager_BreachingCharge/` contém `BreachingChargeRaidBlocker.c`, que modifica a classe `HDSN_ActionDeployBreachingCharge`, confirmada no `deploybc.c` enviado, preservado em `original/deploybc.c`.
 
 - Fora do raid, a condição da ação retorna falso e a opção não é disponibilizada.
 - Uma colocação em andamento deixa de atender à condição de continuidade quando o raid termina.
 - O callback padrão `OnFinishProgressServer` também revalida a permissão antes de delegar ao mod original.
 - Durante o raid, todas as condições originais continuam valendo. Não se usa `IsDestructionUN()`: essa função pertence ao trecho enviado, e não foi definida nas fontes do gerenciador.
 
-**Dependência:** esta variante agora exige o BreachingCharge que declara essa classe. Carregue-o antes do SDN_RaidManager, nos clientes e no servidor. Exemplo, usando os nomes reais das suas pastas: `-mod="@CodeLock;@BreachingCharge;@SDN_RaidManager"`. Sem esse mod, a nova classe produz erro de compilação; não instale esta variante em servidor sem BreachingCharge. A configuração `CfgPatches` do BreachingCharge não foi fornecida, portanto não foi inventado um nome de dependência de addon.
+### Instalação opcional
+
+O gerenciador principal **não contém nenhuma referência à classe do BreachingCharge**. Pode ser empacotado e carregado sozinho, com ou sem esse mod instalado. O bloqueio de CodeLock e a proteção das estruturas permanecem no gerenciador principal.
+
+- **Sem BreachingCharge:** instale somente o PBO principal. Não instale/carregue o complemento opcional.
+- **Com BreachingCharge e desejando bloquear o plantio fora do raid:** empacote também `opcionais/SDN_RaidManager_BreachingCharge/`, com prefixo `SDN_RaidManager_BreachingCharge`. Carregue esse complemento no cliente e no servidor, depois do BreachingCharge e do gerenciador. Exemplo: `-mod="@CodeLock;@BreachingCharge;@SDN_RaidManager;@SDN_RaidManager_BreachingCharge"`.
+- **Com BreachingCharge, mas sem o complemento:** o gerenciador funciona, porém o bloqueio específico de plantio não fica ativo.
+
+O complemento exige a classe `HDSN_ActionDeployBreachingCharge`. Se o BreachingCharge for removido, remova também o complemento da lista de mods/PBOs carregados. Ele tem `config.cpp` e caminho de scripts próprios, fora dos módulos do gerenciador principal. `requiredAddons` declara a dependência confirmada `SDN_RaidManager`; o `CfgPatches` do BreachingCharge não foi fornecido, portanto não foi inventado um nome de addon para ele.
+
+**Atualização da versão anterior:** recompile e substitua o PBO principal inteiro com as fontes atuais. Confira que ele não contém mais `BreachingChargeRaidBlocker.c`. Apenas acrescentar o novo PBO opcional e manter o principal antigo não remove a antiga dependência e pode duplicar os overrides.
+
 
 O arquivo enviado é uma adaptação da ação, não sua implementação completa. Foram conferidas as assinaturas herdadas de `ActionBase`/`ActionContinuousBase` nas fontes públicas do DayZ. Ainda é preciso testar a versão instalada para confirmar que o plantio ocorre pelo callback padrão, sem outros efeitos em callbacks não fornecidos.
 
@@ -106,3 +120,9 @@ O bloqueio de colocação não desarma cargas plantadas durante o raid. Se elas 
 6. Detonar fora do raid uma carga plantada antes: registrar o resultado para identificar eventual necessidade de proteger o código de detonação do BreachingCharge.
 
 Estes testes e a compilação no DayZ ainda não foram executados neste ambiente.
+
+## Verificação da separação opcional
+
+Conferido que o gerenciador principal e seu ZIP não contêm `HDSN_ActionDeployBreachingCharge`, nem `BreachingChargeRaidBlocker.c`. O script da integração aparece somente no complemento e no ZIP opcional. Conferidos os caminhos de `CfgMods`, a dependência do gerenciador e a integridade dos dois arquivos ZIP.
+
+Validar no DayZ as combinações: gerenciador sem BreachingCharge; gerenciador com BreachingCharge sem complemento; os três juntos. Nas duas primeiras, não deve haver referência ao tipo ausente; na terceira, testar o bloqueio de plantio dentro/fora do raid. Compilação e inicialização reais ainda não foram executadas neste ambiente.
