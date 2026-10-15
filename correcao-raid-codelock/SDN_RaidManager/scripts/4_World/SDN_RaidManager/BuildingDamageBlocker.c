@@ -9,8 +9,7 @@ modded class BaseBuildingBase
 			return;
 		}
 
-		// Sets initial state to allow damage tracking. Actual raid checks
-		// are now handled instantly at EEOnDamageCalculated and EEHitBy for performance optimization.
+		// Registrar a estrutura e aplicar a protecao inicial no servidor.
 		SDN_RaidManagerManager manager = SDN_RaidManagerManager.GetInstance();
 		if (manager)
 		{
@@ -19,8 +18,38 @@ modded class BaseBuildingBase
 		}
 		else
 		{
-			SetAllowDamage(true);
+			SetAllowDamage(false);
 		}
+	}
+
+	private void SDN_RefreshRaidDamageProtection()
+	{
+		if (!GetGame() || !GetGame().IsServer())
+			return;
+
+		SDN_RaidManagerManager manager = SDN_RaidManagerManager.GetInstance();
+		if (manager)
+		{
+			manager.RegisterBase(this);
+			SetAllowDamage(manager.IsSDN_RaidManager());
+		}
+		else
+		{
+			SetAllowDamage(false);
+		}
+	}
+
+	override void OnPartBuiltServer(notnull Man player, string part_name, int action_id)
+	{
+		super.OnPartBuiltServer(player, part_name, action_id);
+		// Construction.BuildPartServer reativa o dano antes deste evento.
+		SDN_RefreshRaidDamageProtection();
+	}
+
+	override void AfterStoreLoad()
+	{
+		super.AfterStoreLoad();
+		SDN_RefreshRaidDamageProtection();
 	}
 
 	override void EEDelete(EntityAI parent)
@@ -42,7 +71,7 @@ modded class BaseBuildingBase
 		if (GetGame() && GetGame().IsServer())
 		{
 			SDN_RaidManagerManager manager = SDN_RaidManagerManager.GetInstance();
-			if (manager && manager.IsEnabled() && !manager.IsSDN_RaidManager())
+			if (!manager || !manager.IsSDN_RaidManager())
 			{
 				SDN_RaidManagerNotifyBlockedHit(source, manager);
 				return;
@@ -57,12 +86,12 @@ modded class BaseBuildingBase
 		if (GetGame() && GetGame().IsServer())
 		{
 			SDN_RaidManagerManager manager = SDN_RaidManagerManager.GetInstance();
-			
-			if (manager && manager.IsEnabled() && !manager.IsSDN_RaidManager())
+
+			if (!manager || !manager.IsSDN_RaidManager())
 			{
 				// Not raid time: Block damage outright and notify
 				SDN_RaidManagerNotifyBlockedHit(source, manager);
-				return false; 
+				return false;
 			}
 		}
 

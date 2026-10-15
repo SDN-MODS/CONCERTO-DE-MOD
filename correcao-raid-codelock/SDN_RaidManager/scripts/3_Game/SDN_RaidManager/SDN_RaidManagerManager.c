@@ -389,6 +389,8 @@ class SDN_RaidManagerManager
 
 		if (m_LastRaidState == state)
 		{
+			// Reaplicar mesmo sem transicao: construcao/mods podem reativar o dano.
+			UpdateAllBasesDamageState(raidNow);
 			return;
 		}
 

@@ -61,3 +61,18 @@ Comparadas as classes, assinaturas dos métodos, macro e pontos de aplicação d
 Não foram executados compilação Enforce Script, empacotamento PBO nem testes de comportamento no DayZ. A correção de código está implementada; a validação no jogo permanece pendente.
 
 SHA-256 do `scripts.zip` de referência: `8aa7c233d8de6f69f527d6c10f7240c17d981bf3179059c6b45a095ae9e13e15`.
+
+## Reforço da proteção contra explosivos
+
+Após relato de destruição por explosivos fora do raid, foram adicionadas estas proteções:
+
+- Reaplicar `SetAllowDamage` após construir uma parte e após carregar a estrutura persistida. O `Construction.BuildPartServer` padrão reativa o dano durante a construção.
+- Reaplicar a permissão de dano das estruturas registradas em cada verificação periódica, mesmo sem mudança de horário.
+- Bloquear dano nos callbacks existentes também quando a configuração ainda não está disponível.
+- Novo `ConstructionRaidBlocker.c`: negar `DestroyPartServer` fora do raid antes da remoção de materiais e das partes. A desmontagem por `DismantlePartServer` não foi alterada. Rotinas de limpeza que usam destruição de partes também ficam bloqueadas fora do raid.
+
+As assinaturas e a ordem dos eventos foram conferidas nas fontes públicas do DayZ: `BohemiaInteractive/DayZ-Script-Diff`, arquivos `scripts/4_world/classes/basebuilding/construction.c` e `scripts/4_world/entities/itembase/basebuildingbase.c`. Isso confirma os pontos de integração, não o comportamento no servidor do usuário.
+
+**Diagnóstico do explosivo ainda pendente:** é necessário informar o explosivo e a classe/mod da estrutura. Mods que chamam `Delete`, alteram HP diretamente ou usam construções que não derivam de `BaseBuildingBase`/`Construction` podem exigir integração específica. O bloqueio de `DestroyPartServer` não restaura HP que outro script já tenha retirado diretamente.
+
+Testar: tiros e explosões fora/dentro do raid, estrutura recém-construída, após reinício e mudança de horário; conferir HP, partes, anexos e materiais. Repetir os testes do CodeLock. Compilação e testes no jogo permanecem pendentes.
